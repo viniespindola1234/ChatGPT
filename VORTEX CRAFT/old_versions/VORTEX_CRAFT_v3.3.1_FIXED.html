@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-VORTEX CRAFT v3.3.0
+VORTEX CRAFT v3.3.1
 - Mira padrão: Círculo grande livre (tocar/segurar onde quiser) + opção de voltar para a Cruz (+) nas Configurações.
 - Interface estilo Minecraft Bedrock/Java organizada e adaptada para Landscape (16:9, 20:9, 21:9) sem rolagem.
 - Mobs e texturas estilo Minecraft aprimorados, novos blocos, Porta (sem bugs), Alçapão e Tocha 3D com luz.
@@ -13,7 +13,7 @@ VORTEX CRAFT v3.3.0
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
-<title>VORTEX CRAFT v3.3.0</title>
+<title>VORTEX CRAFT v3.3.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -460,7 +460,7 @@ body.nations.claiming #nationClaimHint{display:block}
       <button class="mcbtn secondary" id="btn-skin">EDITAR SKIN</button>
       <button class="mcbtn secondary" id="btn-settings">CONFIGURAÇÕES</button>
     </div>
-    <div class="menu-foot"><span>VORTEX CRAFT v3.3.0</span><span id="menu-player-name">Jogador</span></div>
+    <div class="menu-foot"><span>VORTEX CRAFT v3.3.1</span><span id="menu-player-name">Jogador</span></div>
     <div class="help">Toque onde quiser para colocar/atirar · Segure para quebrar · Arraste para girar a câmera</div>
   </div>
 </div>
@@ -1840,7 +1840,7 @@ chatIn.addEventListener('keydown',e=>{
   if(e.key==='Enter'){const v=chatIn.value;closeUI(true);submit(v)}
   else if(e.key==='Escape'){e.preventDefault();closeUI(true)}
 });
-say('VORTEX CRAFT v3.3.0 carregado! Começaste com uma Pistola e Tochas.','sys');
+say('VORTEX CRAFT v3.3.1 carregado! Começaste com uma Pistola e Tochas.','sys');
 
 /* ---------- Multiplayer Persistente ---------- */
 let room=null,myPeer=null,onlineN=0,ready=false,lastPres=0,lastSent='',lastHeartbeat=0,ownerAccess=false;
