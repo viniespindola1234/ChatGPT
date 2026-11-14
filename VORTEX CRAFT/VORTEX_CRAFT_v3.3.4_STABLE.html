@@ -1808,7 +1808,7 @@ gi('invHotBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopProp
 ALL.forEach(b=>{
   const d=document.createElement('div');d.className='it';
   d.innerHTML=`<img src="${ico(b)}" alt="">${NAMES[b]}`;
-  d.addEventListener('pointerdown',e=>{e.stopPropagation();HOT[slot]=b;CNT[slot]=64;refreshSlots()});
+  d.addEventListener('pointerdown',e=>{e.stopPropagation();if(!admin)return;HOT[slot]=b;CNT[slot]=64;refreshSlots()});
   grid.appendChild(d);
 });
 gi('invX').addEventListener('pointerdown',e=>{e.stopPropagation();closeUI(true)});
@@ -1822,7 +1822,7 @@ function setOp(v){
 }
 function setAdmin(v){
   if(v&&!allowC){say('O proprietário não permitiu o modo criativo neste mundo.','err');v=false}
-  admin=!!v;document.body.classList.toggle('admin',admin);refreshSlots();
+  admin=!!v;document.body.classList.toggle('admin',admin);refreshSlots();if(invOpen)renderInv();
   if(admin)say('Modo criativo ativado.','ok');
   else{pl.fly=false;syncFly();say('Modo sobrevivência.','sys')}
 }
@@ -3313,8 +3313,8 @@ function eggIcon(id){
 }
 
 const g2=gi('grid2'),g3=gi('grid3');
-ITALL.forEach(id=>{const d=document.createElement('div');d.className='it';d.innerHTML=`<img src="${ico(id)}">${NAMES[id]}`;d.addEventListener('pointerdown',e=>{e.stopPropagation();HOT[slot]=id;CNT[slot]=id===214?1:16;refreshSlots()});g2.appendChild(d)});
-MB.forEach((m,i)=>{const id=100+i,d=document.createElement('div');d.className='it';d.innerHTML=`<img src="${ico(id)}">${m[0]}`;d.addEventListener('pointerdown',e=>{e.stopPropagation();HOT[slot]=id;CNT[slot]=16;refreshSlots()});g3.appendChild(d)});
+ITALL.forEach(id=>{const d=document.createElement('div');d.className='it';d.innerHTML=`<img src="${ico(id)}">${NAMES[id]}`;d.addEventListener('pointerdown',e=>{e.stopPropagation();if(!admin)return;HOT[slot]=id;CNT[slot]=id===214?1:16;refreshSlots()});g2.appendChild(d)});
+MB.forEach((m,i)=>{const id=100+i,d=document.createElement('div');d.className='it';d.innerHTML=`<img src="${ico(id)}">${m[0]}`;d.addEventListener('pointerdown',e=>{e.stopPropagation();if(!admin)return;HOT[slot]=id;CNT[slot]=16;refreshSlots()});g3.appendChild(d)});
 gi('tabs').addEventListener('pointerdown',e=>{const t=e.target.dataset.tab;if(!t)return;e.stopPropagation();document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));grid.style.display=t==='b'?'grid':'none';g2.style.display=t==='i'?'grid':'none';g3.style.display=t==='m'?'grid':'none'});
 
 const XI=Array(27).fill(0),XC=Array(27).fill(0),CI=[0,0,0,0],CCn=[0,0,0,0],CUR={id:0,n:0};
@@ -3349,7 +3349,7 @@ function paintSlots(el,A,C){
   A.forEach((id,i)=>{const d=document.createElement('div');d.className='sc';if(id)d.innerHTML=`<img src="${ico(id)}"><span class="cnt">${C[i]>1?C[i]:''}</span>`;d.addEventListener('pointerdown',e=>{e.stopPropagation();scClick(A,C,i)});el.appendChild(d)});
 }
 function renderInv(){
-  gi('cre').style.display=admin?'none':'block';gi('cur').textContent=CUR.id?NAMES[CUR.id]+' x'+CUR.n:'Mão vazia';
+  gi('cre').style.display=admin?'block':'none';gi('cur').textContent=CUR.id?NAMES[CUR.id]+' x'+CUR.n:'Mão vazia';
   paintSlots(gi('invMain'),XI,XC);paintSlots(gi('invHot'),HOT,CNT);paintSlots(gi('cg'),CI,CCn);
   const r=matchRec(),co=gi('co');co.innerHTML=r?`<img src="${ico(r[0])}"><span class="cnt">${r[1]>1?r[1]:''}</span>`:'';
 }
