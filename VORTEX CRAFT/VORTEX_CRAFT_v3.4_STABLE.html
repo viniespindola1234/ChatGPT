@@ -1190,7 +1190,8 @@ function build(cx0,cz0){
     }
     if(b===73||b===75)continue;
     if(b===76){pushCustomBox(A,x+.02,y+.82,z+.02,x+.98,y+1,z+.98,70,.95);continue}
-    if(b===77){pushCustomBox(A,x+.02,y,z+.82,x+.98,y+1,z+.98,70,.95);continue}    if(b===91){pushCustomBox(A,x+.08,y+.08,z+.08,x+.92,y+.78,z+.92,80,1.08);pushCustomBox(A,x+.06,y+.73,z+.06,x+.94,y+.91,z+.94,76,1.12);pushCustomBox(A,x+.43,y+.40,z+.015,x+.57,y+.68,z+.075,74,1.18);pushCustomBox(A,x+.465,y+.47,z+.005,x+.535,y+.59,z+.09,13,1.25);continue}
+    if(b===77){pushCustomBox(A,x+.02,y,z+.82,x+.98,y+1,z+.98,70,.95);continue}
+    if(b===91){pushCustomBox(A,x+.08,y+.08,z+.08,x+.92,y+.78,z+.92,80,1.08);pushCustomBox(A,x+.06,y+.73,z+.06,x+.94,y+.91,z+.94,76,1.12);pushCustomBox(A,x+.43,y+.40,z+.015,x+.57,y+.68,z+.075,74,1.18);pushCustomBox(A,x+.465,y+.47,z+.005,x+.535,y+.59,z+.09,13,1.25);continue}
     if(TORCHES.has(b)){pushTorchGeometry(A,x,y,z,b);continue}
     if(PL.has(b)){
       const t=BL[b][0];
@@ -2132,8 +2133,8 @@ function rebuildNationBaseCache(){
   const fy=Math.min(H-8,Math.max(5,high+1));nationBaseInfos.set(n.id,{homeX:Number(n.homeX),homeZ:Number(n.homeZ),x0,z0,x1,z1,floorY:fy,spawnX:x0+4,spawnZ:z0+5});
   const put=(x,y,z,v)=>{if(y>=0&&y<H)nationBaseBlocks.set(nationBaseBlockKey(x,y,z),v)};
   for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++){nationBaseProtected.add(nationBaseCellKey(x,z));nationBaseOwners.set(nationBaseCellKey(x,z),n.id);for(let y=terrainH(x,z)+1;y<fy;y++)put(x,y,z,43);put(x,fy,z,87);put(x,fy+5,z,87)}
-  for(let y=fy+1;y<=fy+4;y++){for(let x=x0;x<=x1;x++){put(x,y,z0,(x===x0||x===x1)?87:43);put(x,y,z1,(x===x0||x===x1)?87:43)}for(let z=z0+1;z<z1;z++){put(x0,y,z,87);put(x1,y,z,87)}}
-  put(x0+4,fy+1,z0,72);put(x0+4,fy+2,z0,73);
+  for(let y=fy+1;y<=fy+4;y++){for(let x=x0;x<=x1;x++){const doorway=x===x0+4&&(y===fy+1||y===fy+2);if(!doorway)put(x,y,z0,(x===x0||x===x1)?87:43);put(x,y,z1,(x===x0||x===x1)?87:43)}for(let z=z0+1;z<z1;z++){put(x0,y,z,87);put(x1,y,z,87)}}
+  // Entrada livre: a casa é protegida, mas continua acessível sem depender de um bloco destrutível.
   for(const z of [z0+2,z0+5]){put(x0,fy+3,z,9);put(x1,fy+3,z,9)}for(const x of [x0+2,x0+5])put(x,fy+3,z1,9);
   put(x0+4,fy+1,z0+6,91);
  }
@@ -2329,18 +2330,46 @@ gi('raidActionBtn').onclick=startTerritoryRaid;
 function cancelTerritoryRaid(msg){if(!activeRaid)return;activeRaid=null;gi('raidBarFill').style.width='0%';gi('raidBarWrap').style.display='none';gi('raidActionBtn').style.display='inline-block';say(msg||'Extração interrompida. Nenhum recurso foi transferido.','err');updateRaidPreview()}
 async function finishTerritoryRaid(q){
  try{
-  const cl=CLAIM_CACHE[q.key];if(!cl||cl.nationId!==q.nationId||!onlineNationPresident(q.nationId,q.ownerUid)){say('Extração cancelada: presidente offline ou território alterado.','err');return}
-  const now=Date.now(),cd=await runTransaction(nref('raidCooldowns/'+q.key),v=>{if(v&&Number(v.until)>now)return;return{until:now+RAID_COOLDOWN,lastBy:vortexId,at:now}},{applyLocally:false});
-  if(!cd.committed){say('Alguém já saqueou esta parcela recentemente.','err');return}
-  const vr=nref('countries/'+q.nationId),taken={food:0,wood:0,stone:0,iron:0,oil:0};
-  const vt=await runTransaction(vr,v=>{if(!v||v.ownerUid!==q.ownerUid)return;v.resources=v.resources||{};for(const k of Object.keys(taken)){const have=Math.max(0,Number(v.resources[k])||0),n=Math.min(have,Math.max(0,Number(q.loot[k])||0));taken[k]=n;v.resources[k]=have-n}return v},{applyLocally:false});
-  if(!vt.committed){say('Não foi possível retirar recursos do país alvo.','err');return}
-  const at=await runTransaction(ownNationRef(),v=>{if(!v||v.ownerUid!==vortexId)return;v.resources=v.resources||{};for(const k of Object.keys(taken))v.resources[k]=(Number(v.resources[k])||0)+taken[k];return v},{applyLocally:false});
-  if(!at.committed){await runTransaction(vr,v=>{if(!v||v.ownerUid!==q.ownerUid)return;v.resources=v.resources||{};for(const k of Object.keys(taken))v.resources[k]=(Number(v.resources[k])||0)+taken[k];return v},{applyLocally:false});say('Falha ao receber; transferência estornada.','err');return}
-  const total=Object.values(taken).reduce((x,y)=>x+y,0);if(!total){say('O país não tinha recursos disponíveis. O cofre permaneceu protegido.','err');return}
-  const ar=push(nref('alerts/'+q.ownerUid));set(ar,{type:'raid-finished',fromUid:vortexId,playerName:myName,loot:taken,ts:Date.now()}).catch(()=>{});
-  const ico={food:'🍖',wood:'🪵',stone:'🪨',iron:'⚙️',oil:'🛢️'};say('💰 Extração concluída! '+Object.entries(taken).filter(([,v])=>v>0).map(([k,v])=>ico[k]+' '+v).join(' · '),'ok');
- }catch(e){console.error('NATIONS RAID',e);say('Erro na extração: '+(e.message||e),'err')}finally{updateRaidPreview()}
+  const cl=CLAIM_CACHE[q.key];
+  if(!cl||cl.nationId!==q.nationId||!onlineNationPresident(q.nationId,q.ownerUid)){
+    say('Extração cancelada: presidente offline ou território alterado.','err');return;
+  }
+  const now=Date.now();
+  const cd=await runTransaction(nref('raidCooldowns/'+q.key),v=>{
+    if(v&&Number(v.until)>now)return;
+    return{until:now+RAID_COOLDOWN,lastBy:vortexId,at:now};
+  },{applyLocally:false});
+  if(!cd.committed){say('Alguém já saqueou esta parcela recentemente.','err');return;}
+  const taken={food:0,wood:0,stone:0,iron:0,oil:0};
+  const transfer=await runTransaction(nref('countries'),countries=>{
+    for(const k of Object.keys(taken))taken[k]=0;
+    if(!countries)return;
+    const victim=countries[q.nationId],attacker=countries[NATION_ID];
+    if(!victim||victim.ownerUid!==q.ownerUid||!attacker||attacker.ownerUid!==vortexId||q.nationId===NATION_ID)return;
+    victim.resources=victim.resources||{};
+    attacker.resources=attacker.resources||{};
+    for(const k of Object.keys(taken)){
+      const available=Math.max(0,Number(victim.resources[k])||0);
+      const amount=Math.min(available,Math.max(0,Number(q.loot[k])||0));
+      taken[k]=amount;
+      victim.resources[k]=available-amount;
+      attacker.resources[k]=(Number(attacker.resources[k])||0)+amount;
+    }
+    countries[q.nationId]=victim;
+    countries[NATION_ID]=attacker;
+    return countries;
+  },{applyLocally:false});
+  if(!transfer.committed){say('Não foi possível transferir os recursos.','err');return;}
+  const total=Object.values(taken).reduce((x,y)=>x+y,0);
+  if(!total){say('O país não tinha recursos disponíveis. O cofre permaneceu protegido.','err');return;}
+  const ar=push(nref('alerts/'+q.ownerUid));
+  set(ar,{type:'raid-finished',fromUid:vortexId,playerName:myName,loot:taken,ts:Date.now()}).catch(()=>{});
+  const ico={food:'🍖',wood:'🪵',stone:'🪨',iron:'⚙️',oil:'🛢️'};
+  say('💰 Extração concluída! '+Object.entries(taken).filter(([,v])=>v>0).map(([k,v])=>ico[k]+' '+v).join(' · '),'ok');
+ }catch(e){
+  console.error('NATIONS RAID',e);
+  say('Erro na extração: '+(e.message||e),'err');
+ }finally{updateRaidPreview()}
 }
 function tickTerritoryRaid(now){
  if(!activeRaid)return;if(!playing){cancelTerritoryRaid('Você saiu da partida. Extração cancelada.');return}
