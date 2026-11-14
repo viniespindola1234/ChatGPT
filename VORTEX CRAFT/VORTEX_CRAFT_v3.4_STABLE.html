@@ -2392,7 +2392,14 @@ async function finishTerritoryRaid(q){
     countries[NATION_ID]=attacker;
     return countries;
   },{applyLocally:false});
-  if(!transfer.committed){say('Não foi possível transferir os recursos.','err');return;}
+  if(!transfer.committed){
+    // A reserva de cooldown só deve permanecer quando a transferência de recursos foi concluída.
+    await runTransaction(nref('raidCooldowns/'+q.key),v=>{
+      if(v&&v.lastBy===vortexId&&Number(v.at)===now)return null;
+      return v;
+    },{applyLocally:false}).catch(()=>{});
+    say('Não foi possível transferir os recursos. O bloqueio da parcela foi liberado.','err');return;
+  }
   const total=Object.values(taken).reduce((x,y)=>x+y,0);
   if(!total){say('O país não tinha recursos disponíveis. O cofre permaneceu protegido.','err');return;}
   const ar=push(nref('alerts/'+q.ownerUid));
