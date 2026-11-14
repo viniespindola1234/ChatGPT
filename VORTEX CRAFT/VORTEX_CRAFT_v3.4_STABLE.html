@@ -751,7 +751,7 @@ function get(x,y,z){
   x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);
   if(y<0)return 3;if(y>=H)return 0;
   if(NATIONS_MODE){
-    const baseKey=nationBaseBlockKey(x,y,z),fixed=nationBaseBlockAt(x,y,z);
+    const baseKey=nationBaseBlockKey(x,y,z),fixed=nationBaseBlocks.get(baseKey)||0;
     if(fixed)return fixed;
     if(nationBaseCarved.has(baseKey)){
       const editKey=x+','+y+','+z;
@@ -2557,7 +2557,7 @@ function updateMinimap(now){
   mmLastTick=now;
 
   const px=Math.floor(pl.p.x),pz=Math.floor(pl.p.z);
-  if(Math.abs(px-mmLastX)>=1||Math.abs(pz-mmLastZ)>=1){
+  if(!Number.isFinite(mmLastX)||!Number.isFinite(mmLastZ)||Math.abs(px-mmLastX)>=1||Math.abs(pz-mmLastZ)>=1){
     mmLastX=px;mmLastZ=pz;
     const d=mmImg.data;
     for(let gz=0;gz<64;gz++){
