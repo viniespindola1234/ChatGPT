@@ -750,7 +750,14 @@ const chunkIndex=(x,y,z)=>x+z*CS+y*CS*CS;
 function get(x,y,z){
   x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);
   if(y<0)return 3;if(y>=H)return 0;
-  if(NATIONS_MODE){const fixed=nationBaseBlockAt(x,y,z);if(fixed)return fixed}
+  if(NATIONS_MODE){
+    const baseKey=nationBaseBlockKey(x,y,z),fixed=nationBaseBlockAt(x,y,z);
+    if(fixed)return fixed;
+    if(nationBaseCarved.has(baseKey)){
+      const editKey=x+','+y+','+z;
+      return edits.has(editKey)?(Number(edits.get(editKey))||0):0;
+    }
+  }
   const cx=Math.floor(x/CS),cz=Math.floor(z/CS),data=ensureChunk(cx,cz);
   return data[chunkIndex(mod(x,CS),y,mod(z,CS))]||0;
 }
@@ -1923,8 +1930,10 @@ function checkSupportAround(x,y,z){
 
 function editMany(list,rec){
   const dirty=new Set(),old=[],ok=[];
+  if(NATIONS_MODE&&list.some(([x,y,z])=>isImmutableNationBaseBlock(x,y,z)))return 0;
   for(const[x,y,z,b]of list){
     if(!okBlk(x,y,z,b))continue;
+    if(NATIONS_MODE&&isImmutableNationBaseBlock(x,y,z))continue;
     if(!canEditTerritory(x,z))continue;
     const o=get(x,y,z);if(o===b)continue;
     old.push([x,y,z,o]);ok.push([x,y,z,b]);
@@ -1995,7 +2004,7 @@ function applyNationRemote(tileKey,value){
       const y=+yKey;if(!Number.isInteger(y)||!zs||typeof zs!=='object')continue;
       for(const[lzKey,raw]of Object.entries(zs)){
         const lz=+lzKey,x=tx*NATION_TILE+lx,z=tz*NATION_TILE+lz,b=Number(raw);
-        if(!Number.isInteger(lz)||lz<0||lz>=NATION_TILE||isProtectedNationBase(x,z)||!okBlk(x,y,z,b)||get(x,y,z)===b)continue;
+        if(!Number.isInteger(lz)||lz<0||lz>=NATION_TILE||isImmutableNationBaseBlock(x,y,z)||!okBlk(x,y,z,b)||get(x,y,z)===b)continue;
         setRaw(x,y,z,b);edits.set(x+','+y+','+z,b);dirtyAdd(dirty,x,z);
       }
     }
@@ -2118,27 +2127,50 @@ gi('joinNationsServer').onclick=joinNationsServer;
 
 /* ================= VORTEX NATIONS: Barreiras Java Azul/Vermelha, GPS e Expansão por Recursos ================= */
 const NATION_TILE=8,START_CLAIM_CELLS=2;
-const nationBaseBlocks=new Map(),nationBaseProtected=new Set(),nationBaseOwners=new Map(),nationBaseInfos=new Map();let nationBaseSignature='';
+const nationBaseBlocks=new Map(),nationBaseCarved=new Set(),nationBaseProtected=new Set(),nationBaseOwners=new Map(),nationBaseInfos=new Map();let nationBaseSignature='',nationBaseWarnAt=0;
 const nationBaseCellKey=(x,z)=>Math.floor(x)+','+Math.floor(z),nationBaseBlockKey=(x,y,z)=>Math.floor(x)+','+Math.floor(y)+','+Math.floor(z);
 function nationBaseBlockAt(x,y,z){return nationBaseBlocks.get(nationBaseBlockKey(x,y,z))||0}
+function isImmutableNationBaseBlock(x,y,z){return NATIONS_MODE&&nationBaseBlocks.has(nationBaseBlockKey(x,y,z))}
 function isProtectedNationBase(x,z){return nationBaseProtected.has(nationBaseCellKey(x,z))}
 function nationBaseOwnerAt(x,z){return nationBaseOwners.get(nationBaseCellKey(x,z))||''}
 function rebuildNationBaseCache(){
  const all=Object.values(NATION_MAP||{}).filter(n=>n&&n.status!=='forming'&&Number.isFinite(Number(n.homeX))&&Number.isFinite(Number(n.homeZ)));
- const sig=all.map(n=>[n.id,n.homeX,n.homeZ,n.status].join(':')).sort().join('|');if(sig===nationBaseSignature)return false;
- nationBaseBlocks.clear();nationBaseProtected.clear();nationBaseOwners.clear();nationBaseInfos.clear();
+ const sig=all.map(n=>[n.id,n.homeX,n.homeZ,n.status].join(':')).sort().join('|');
+ if(sig===nationBaseSignature)return false;
+ nationBaseBlocks.clear();nationBaseCarved.clear();nationBaseProtected.clear();nationBaseOwners.clear();nationBaseInfos.clear();
  for(const n of all){
-  const x0=Math.floor(Number(n.homeX))+4,z0=Math.floor(Number(n.homeZ))+4,x1=x0+7,z1=z0+7;let high=0;
+  const x0=Math.floor(Number(n.homeX))+4,z0=Math.floor(Number(n.homeZ))+4,x1=x0+7,z1=z0+7;
+  let high=0;
   for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)high=Math.max(high,terrainH(x,z));
-  const fy=Math.min(H-8,Math.max(5,high+1));nationBaseInfos.set(n.id,{homeX:Number(n.homeX),homeZ:Number(n.homeZ),x0,z0,x1,z1,floorY:fy,spawnX:x0+4,spawnZ:z0+5});
+  const fy=Math.min(H-8,Math.max(5,high+1));
+  nationBaseInfos.set(n.id,{homeX:Number(n.homeX),homeZ:Number(n.homeZ),x0,z0,x1,z1,floorY:fy,spawnX:x0+4,spawnZ:z0+5});
   const put=(x,y,z,v)=>{if(y>=0&&y<H)nationBaseBlocks.set(nationBaseBlockKey(x,y,z),v)};
-  for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++){nationBaseProtected.add(nationBaseCellKey(x,z));nationBaseOwners.set(nationBaseCellKey(x,z),n.id);for(let y=terrainH(x,z)+1;y<fy;y++)put(x,y,z,43);put(x,fy,z,87);put(x,fy+5,z,87)}
-  for(let y=fy+1;y<=fy+4;y++){for(let x=x0;x<=x1;x++){const doorway=x===x0+4&&(y===fy+1||y===fy+2);if(!doorway)put(x,y,z0,(x===x0||x===x1)?87:43);put(x,y,z1,(x===x0||x===x1)?87:43)}for(let z=z0+1;z<z1;z++){put(x0,y,z,87);put(x1,y,z,87)}}
-  // Entrada livre: a casa é protegida, mas continua acessível sem depender de um bloco destrutível.
-  for(const z of [z0+2,z0+5]){put(x0,fy+3,z,9);put(x1,fy+3,z,9)}for(const x of [x0+2,x0+5])put(x,fy+3,z1,9);
+  for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++){
+   nationBaseProtected.add(nationBaseCellKey(x,z));
+   nationBaseOwners.set(nationBaseCellKey(x,z),n.id);
+   // Concrete foundation levels each column and a flat iron floor.
+   for(let y=terrainH(x,z)+1;y<fy;y++)put(x,y,z,43);
+   put(x,fy,z,87);put(x,fy+5,z,87);
+   // Remove generated tree trunks, foliage and other terrain from the house volume
+   // and a few blocks above its roof. Player edits remain visible in this air layer.
+   for(let y=fy+1;y<=Math.min(H-1,fy+12);y++)nationBaseCarved.add(nationBaseBlockKey(x,y,z));
+  }
+  // Four walls with a permanently open entrance; the structure itself is immutable.
+  for(let y=fy+1;y<=fy+4;y++){
+   for(let x=x0;x<=x1;x++){
+    const doorway=x===x0+4&&(y===fy+1||y===fy+2);
+    if(!doorway)put(x,y,z0,(x===x0||x===x1)?87:43);
+    put(x,y,z1,(x===x0||x===x1)?87:43);
+   }
+   for(let z=z0+1;z<z1;z++){put(x0,y,z,87);put(x1,y,z,87)}
+  }
+  for(const z of [z0+2,z0+5]){put(x0,fy+3,z,9);put(x1,fy+3,z,9)}
+  for(const x of [x0+2,x0+5])put(x,fy+3,z1,9);
+  // The iron vault is part of the protected base structure.
   put(x0+4,fy+1,z0+6,91);
  }
- nationBaseSignature=sig;return true;
+ nationBaseSignature=sig;
+ return true;
 }
 
 const ownNationRef=()=>nref('countries/'+NATION_ID);
@@ -2150,7 +2182,6 @@ const isOwnTerritory=(x,z)=>{
 const nationClaimAt=(x,z)=>CLAIM_CACHE[territoryKey(Math.floor(x/NATION_TILE),Math.floor(z/NATION_TILE))]||null;
 const canEditTerritory=(x,z)=>{
   if(!NATIONS_MODE)return true;
-  if(isProtectedNationBase(x,z))return false;
   const claim=nationClaimAt(x,z);
   if(claim?.nationId)return claim.nationId===NATION_ID;
   return !!(op&&admin);
@@ -3577,6 +3608,11 @@ function breakTick(dt){
   bw=Math.max(0,bw-dt);
   if(!playing||uiOpen()||!on||!t||t.y<=0){
     brk=null;breakProgress=0;crack.visible=false;touchCircleEl.style.setProperty('--p',0);return;
+  }
+  if(NATIONS_MODE&&isImmutableNationBaseBlock(t.x,t.y,t.z)){
+    brk=null;breakProgress=0;crack.visible=false;touchCircleEl.style.setProperty('--p',0);
+    if(Date.now()-nationBaseWarnAt>1800){nationBaseWarnAt=Date.now();say('🛡️ Esta parte da casa nacional é indestrutível; o interior continua editável.','err')}
+    return;
   }
   if(!canEditTerritory(t.x,t.z)){
     brk=null;breakProgress=0;crack.visible=false;touchCircleEl.style.setProperty('--p',0);
