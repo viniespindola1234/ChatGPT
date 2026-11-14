@@ -1621,12 +1621,13 @@ document.addEventListener('pointerlockchange',()=>{
 
 function act(btn,tOverride=null,cx=innerWidth/2,cy=innerHeight/2){
   if(uiOpen())return;
+  const t=tOverride||currentTarget();
+  // Interação com o cofre tem prioridade sobre o disparo da pistola.
+  if(btn===2&&t&&t.b===91){openNationVault(t);return}
   if(btn===2&&HOT[slot]===214){
     shootPistol(cx,cy);
     return;
   }
-  const t=tOverride||currentTarget();
-  if(btn===2&&t&&t.b===91){openNationVault(t);return}
   if(btn===2&&NATIONS_MODE&&HOT[slot]===213){startTerritoryCapture(t);return}
   if(btn===2&&op&&TOOL&&t){toolTap(t);return}
   if(btn===2&&t&&toggleInteractiveBlock(t))return;
@@ -2115,6 +2116,7 @@ async function goOnline(){
 }
 async function joinServer(){
   if(room)leaveVortexServer();
+  mmLastX=mmLastZ=NaN;
   SERVER_ROOT='vortexCraft/server1';curId='';WORLD_TYPE='normal';SEED=1337;PVP_ENABLED=true;PEDS=true;MOBSON=true;DIFF='Normal';allowC=false;ownerAccess=false;setOp(false);PASSH='';
   HOT.fill(0);CNT.fill(0);XI.fill(0);XC.fill(0);setAdmin(false);
   closeModal('serversModal');start(matchMedia('(pointer:coarse)').matches);
@@ -2886,7 +2888,7 @@ function renderNationMap(){
   }
   for(const n of Object.values(NATION_MAP)){
     if(!n||n.status==='forming')continue;
-    const sx=((Number(n.homeX)||0)-focus.x)*scale+w/2,sz=((Number(n.homeZ)||0)-focus.z)*scale+h/2;
+    const sx=((Number(n.homeX)||0)+8-focus.x)*scale+w/2,sz=((Number(n.homeZ)||0)+8-focus.z)*scale+h/2;
     if(sx<-80||sz<-40||sx>w+80||sz>h+40)continue;
     const f=document.createElement('canvas');f.width=30;f.height=20;drawFlagCanvas(f.getContext('2d'),30,20,n.flag);
     ctx.drawImage(f,sx-15,sz-24,30,20);
@@ -3040,6 +3042,7 @@ function checkNationBorder(){
 
 async function joinNationsServer(){
   if(room)leaveVortexServer();
+  mmLastX=mmLastZ=NaN;
   SERVER_ROOT=NATIONS_ROOT;curId='';NATIONS_MODE=true;WORLD_TYPE='normal';SEED=7331;PVP_ENABLED=true;MOBSON=true;DIFF='Normal';allowC=false;ownerAccess=false;setOp(false);PASSH='';
   HOT.fill(0);CNT.fill(0);XI.fill(0);XC.fill(0);setAdmin(false);
   closeModal('serversModal');start(matchMedia('(pointer:coarse)').matches);
@@ -3048,8 +3051,8 @@ async function joinNationsServer(){
   vStops.push(
     onValue(nref('raidCooldowns'),s=>{raidCooldownCache=s.val()||{};updateRaidPreview()},e=>dbError('saques',e)),
     onValue(nref('countries'),s=>{NATION_MAP=s.val()||{};if(NATION_ID&&NATION_MAP[NATION_ID])MY_NATION=NATION_MAP[NATION_ID];if(rebuildNationBaseCache()&&playing){clearWorldRenderCache();updateChunkWindow(pl.p.x,pl.p.z,true)}renderNationPanel();if(vaultUnlocked)renderVaultContent()},e=>dbError('países',e)),
-    onValue(nref('claims'),s=>{CLAIM_CACHE=s.val()||{};rebuildTerritoryBorders(true);renderNationMap()},e=>dbError('territórios',e)),
-    onValue(nref('diplomacy/alliances'),s=>{ALLIANCE_CACHE=s.val()||{};rebuildTerritoryBorders(true);renderNationPanel()},e=>dbError('alianças',e)),
+    onValue(nref('claims'),s=>{CLAIM_CACHE=s.val()||{};mmLastX=mmLastZ=NaN;rebuildTerritoryBorders(true);renderNationMap()},e=>dbError('territórios',e)),
+    onValue(nref('diplomacy/alliances'),s=>{ALLIANCE_CACHE=s.val()||{};mmLastX=mmLastZ=NaN;rebuildTerritoryBorders(true);renderNationPanel()},e=>dbError('alianças',e)),
     onChildAdded(nref('nationEdits'),s=>applyNationRemote(s.key,s.val()),e=>dbError('construções dos países',e)),
     onChildChanged(nref('nationEdits'),s=>applyNationRemote(s.key,s.val()),e=>dbError('construções dos países',e))
   );
